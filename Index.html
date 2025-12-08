@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Buffer Aggressor</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the buffering look */
+        .loading-bar {
+            transition: width 0.3s ease-in-out;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 200px;
+            background-color: #1f2937; /* Gray-800 */
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
+
+    <div id="app" class="w-full max-w-lg bg-gray-800 p-8 rounded-xl shadow-2xl border border-red-500/50">
+        <h1 class="text-3xl font-bold mb-4 text-center text-red-400">Ultimate Web Buffer Aggressor</h1>
+        <p class="text-sm text-gray-400 mb-6 text-center">
+            This test aggressively targets RAM, CPU, and uses intense 2D canvas drawing to simulate GPU load and I/O stress.
+        </p>
+        
+        <div id="status-display" class="space-y-4">
+            <div class="p-3 bg-gray-700 rounded-lg">
+                <p class="text-sm font-semibold text-red-300">STATUS:</p>
+                <p id="current-status" class="text-yellow-400">Ready to start ultimate stress test.</p>
+            </div>
+
+            <!-- Stress Indicators -->
+            <div class="pt-2">
+                <!-- NEW EXTREME TARGET: ~1.6 GB RAM -->
+                <p class="text-sm mb-1 text-gray-300">RAM Allocation (Target: ~1.6 GB - Extreme):</p>
+                <div class="w-full bg-gray-700 rounded-full h-3">
+                    <div id="ram-progress" class="loading-bar h-3 bg-red-600 rounded-full" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <p class="text-sm mb-1 text-gray-300">CPU Glue Stress (Intensive Loop):</p>
+                <div class="w-full bg-gray-700 rounded-full h-3">
+                    <div id="cpu-progress" class="loading-bar h-3 bg-red-600 rounded-full" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <p class="text-sm mb-1 text-gray-300">Simulated GPU/I/O Render Stress:</p>
+                <canvas id="gpu-canvas"></canvas>
+            </div>
+            
+        </div>
+        
+        <!-- Two Buttons: Gradual (Original) and Instant Crash (New) -->
+        <div class="mt-8 space-y-3">
+            <button 
+                id="crash-button" 
+                onclick="crashPageInstant()"
+                class="w-full py-3 bg-gray-600 hover:bg-gray-700 text-red-300 font-bold rounded-lg transition duration-200 shadow-lg hover:shadow-gray-500/50 disabled:bg-gray-500 disabled:cursor-not-allowed"
+            >
+                Crash Page (Instant Freeze)
+            </button>
+            
+            <button 
+                id="start-button" 
+                onclick="startAggressor()"
+                class="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition duration-200 shadow-lg hover:shadow-red-500/50 disabled:bg-gray-500 disabled:cursor-not-allowed"
+            >
+                Start Hard Buffering Test (Gradual)
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Constants defined to aggressively use resources
+        // QUADRUPLED: Increased to 200,000,000 elements (approx. 1.6 GB of RAM) for extremely aggressive buffering.
+        const LARGE_BUFFER_SIZE = 200000000; 
+        const CHUNK_SIZE = 500000; // Process 500k items at a time
+        const RAM_INIT_CHUNKS = 50; // Total number of times we will check in during RAM allocation
+
+        // QUADRUPLED: Increased to 32,000 particles for high I/O stress.
+        const NUM_PARTICLES = 32000;
+        let particles = [];
+        let canvas, ctx;
+        let animationFrameId;
+
+        let massiveBuffer = null;
+        let isRunning = false;
+        let currentIteration = 0;
+        let totalSum = 0;
+        let ramAllocationStep = 0;
+
+        const statusElement = document.getElementById('current-status');
+        const ramProgressElement = document.getElementById('ram-progress');
+        const cpuProgressElement = document.getElementById('cpu-progress');
+        const startButton = document.getElementById('start-button');
+        const crashButton = document.getElementById('crash-button');
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            canvas = document.getElementById('gpu-canvas');
+            ctx = canvas.getContext('2d');
+            // Set canvas size based on its container
+            const containerWidth = canvas.parentElement.clientWidth;
+            canvas.width = containerWidth;
+            canvas.height = 200;
+        });
+
+        // --- UI & Utility Functions ---
+
+        function updateStatus(message, colorClass = 'text-yellow-400') {
+            statusElement.textContent = message;
+            statusElement.className = colorClass;
+        }
+
+        function updateProgress(element, total, current) {
+            const percentage = Math.min(100, (current / total) * 100);
+            element.style.width = percentage + '%';
+        }
+
+        function reset() {
+            isRunning = false;
+            currentIteration = 0;
+            totalSum = 0;
+            massiveBuffer = null;
+            startButton.disabled = false;
+            startButton.textContent = 'Start Hard Buffering Test (Gradual)';
+            crashButton.disabled = false;
+            crashButton.textContent = 'Crash Page (Instant Freeze)';
+            updateStatus('Ready to start ultimate stress test.');
+            
+            // Stop GPU simulation
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        // --- INSTANT CRASH / SYNCHRONOUS BUFFER FUNCTION (PERSISTENT FREEZE) ---
+        function crashPageInstant() {
+            if (isRunning) return;
+
+            isRunning = true;
+            startButton.disabled = true;
+            crashButton.disabled = true;
+            crashButton.textContent = 'SYSTEM LOCKED: MANUAL STOP REQUIRED';
+            
+            updateProgress(ramProgressElement, 1, 0);
+            updateProgress(cpuProgressElement, 1, 0);
+            
+            // Crucial update before synchronous block starts (the last frame before freeze)
+            updateStatus('CRITICAL LOCKDOWN: Attempting full synchronous RAM and CPU lock...', 'text-red-600');
+            
+            // 1. Instant RAM Allocation (Synchronous)
+            try {
+                // This blocks the thread until allocation and fill are complete (expect a multi-second freeze here)
+                massiveBuffer = new Float64Array(LARGE_BUFFER_SIZE);
+                
+                // Fill it instantly in a synchronous loop
+                for (let i = 0; i < LARGE_BUFFER_SIZE; i++) {
+                    massiveBuffer[i] = Math.random(); 
+                }
+                updateProgress(ramProgressElement, 1, 1);
+                updateStatus('LOCK IN PROGRESS: RAM buffer complete. Executing non-stop synchronous CPU loop.', 'text-orange-400');
+
+                // 2. Instant CPU Stress Loop (Synchronous - NO BREAKS)
+                let tempSum = 0;
+                // This loop is designed to run until the browser is forced to close (i.e., forever)
+                while (true) {
+                    for (let i = 0; i < LARGE_BUFFER_SIZE; i++) {
+                        tempSum += massiveBuffer[i] * Math.sin(i);
+                        // The progress update below is unlikely to render in the browser due to the synchronous lock
+                        if (i % 10000000 === 0) {
+                            updateProgress(cpuProgressElement, LARGE_BUFFER_SIZE, i);
+                        }
+                    }
+                    // Prevent the JS engine from optimizing away the loop by resetting the sum
+                    if (tempSum > 1000000) tempSum = 0; 
+                }
+                
+            } catch (e) {
+                // If allocation fails, we stop the lock and report the error
+                updateStatus(`LOCK FAILED: System memory limit exceeded. ${e.message}`, 'text-red-600');
+                // We keep the button locked, but allow a reset if the user wants to try again
+                crashButton.textContent = 'LOCK FAILED (Retry)';
+                crashButton.disabled = false;
+            }
+
+            // NOTE: There is NO reset() call here. The code is designed to remain locked in the while(true) loop
+            // until the browser/tab is manually closed by the user, fulfilling the "force stopped" requirement.
+        }
+
+        // --- RAM Stress Functions (Gradual) ---
+        
+        function allocateMemoryChunk() {
+            // Calculate chunk size based on total elements and number of steps
+            const allocationChunkSize = LARGE_BUFFER_SIZE / RAM_INIT_CHUNKS;
+            const startIndex = ramAllocationStep * allocationChunkSize;
+            const endIndex = Math.min((ramAllocationStep + 1) * allocationChunkSize, LARGE_BUFFER_SIZE);
+
+            if (!massiveBuffer) {
+                try {
+                    massiveBuffer = new Float64Array(LARGE_BUFFER_SIZE);
+                    updateStatus('1. Buffer initialized. Filling memory...', 'text-red-400');
+                } catch (e) {
+                    updateStatus(`CRITICAL ERROR: Failed to allocate full memory. ${e.message}`, 'text-red-600');
+                    reset();
+                    return;
+                }
+            }
+            
+            for (let i = startIndex; i < endIndex; i++) {
+                massiveBuffer[i] = Math.random(); 
+            }
+
+            ramAllocationStep++;
+            updateProgress(ramProgressElement, RAM_INIT_CHUNKS, ramAllocationStep);
+            
+            if (ramAllocationStep < RAM_INIT_CHUNKS) {
+                requestAnimationFrame(allocateMemoryChunk);
+            } else {
+                updateProgress(ramProgressElement, 1, 1);
+                updateStatus(`1. Allocation complete. Starting CPU/GPU stress.`, 'text-green-400');
+                
+                requestAnimationFrame(runCPUStress);
+                startGPUSimulation();
+            }
+        }
+
+        function runCPUStress() {
+            if (currentIteration >= LARGE_BUFFER_SIZE) {
+                updateStatus(`2. Stress complete. Total Sum: ${totalSum}. GPU simulation stopping.`, 'text-green-400');
+                reset();
+                return;
+            }
+
+            const chunkEnd = Math.min(currentIteration + CHUNK_SIZE, LARGE_BUFFER_SIZE);
+            
+            for (let i = currentIteration; i < chunkEnd; i++) {
+                totalSum += massiveBuffer[i] * Math.sin(i);
+            }
+            
+            currentIteration = chunkEnd;
+            updateProgress(cpuProgressElement, LARGE_BUFFER_SIZE, currentIteration);
+            
+            requestAnimationFrame(runCPUStress);
+        }
+        
+        // --- Simulated GPU/I/O Stress Function ---
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 1;
+                this.vy = (Math.random() - 0.5) * 1;
+                this.radius = Math.random() * 2 + 1;
+                this.color = `rgba(255, 60, 60, ${Math.random() * 0.5 + 0.3})`;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                particles.push(new Particle(
+                    Math.random() * canvas.width, 
+                    Math.random() * canvas.height
+                ));
+            }
+        }
+
+        function drawGPUSimulation() {
+            ctx.fillStyle = 'rgba(31, 41, 55, 0.1)'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                particles[i].update();
+                particles[i].draw();
+            }
+
+            animationFrameId = requestAnimationFrame(drawGPUSimulation);
+        }
+        
+        function startGPUSimulation() {
+            initParticles();
+            drawGPUSimulation();
+        }
+
+        // --- Main Execution (Original Gradual Test) ---
+
+        function startAggressor() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            startButton.disabled = true;
+            crashButton.disabled = true;
+            startButton.textContent = 'STRESSING SYSTEM...';
+            
+            updateProgress(ramProgressElement, 1, 0);
+            updateProgress(cpuProgressElement, 1, 0);
+
+            // Start the gradual memory allocation
+            ramAllocationStep = 0;
+            allocateMemoryChunk();
+        }
+    </script>
+</body>
+</html>
