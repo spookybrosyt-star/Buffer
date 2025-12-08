@@ -20,6 +20,22 @@
             background-color: #1f2937; /* Gray-800 */
             border-radius: 0.5rem;
         }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #f87171; /* red-400 */
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #f87171;
+            cursor: pointer;
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
@@ -36,10 +52,9 @@
                 <p id="current-status" class="text-yellow-400">Ready to start ultimate stress test.</p>
             </div>
 
-            <!-- Stress Indicators -->
+            <!-- Stress Indicators (Used by both fixed and custom tests) -->
             <div class="pt-2">
-                <!-- NEW EXTREME TARGET: ~1.6 GB RAM -->
-                <p class="text-sm mb-1 text-gray-300">RAM Allocation (Target: ~1.6 GB - Extreme):</p>
+                <p class="text-sm mb-1 text-gray-300">RAM Allocation (Target: <span id="ram-target-display">1.6 GB</span> - Extreme Load):</p>
                 <div class="w-full bg-gray-700 rounded-full h-3">
                     <div id="ram-progress" class="loading-bar h-3 bg-red-600 rounded-full" style="width: 0%"></div>
                 </div>
@@ -58,51 +73,110 @@
             </div>
             
         </div>
-        
-        <!-- Two Buttons: Gradual (Original) and Instant Crash (New) -->
-        <div class="mt-8 space-y-3">
+
+        <!-- Custom Controls Section -->
+        <div class="mt-8 pt-6 border-t border-gray-700 space-y-4">
+            <h2 class="text-xl font-bold text-blue-300 text-center">Custom Buffer Settings</h2>
+
+            <!-- Slider 1: Packet Size (MB) -->
+            <div>
+                <label for="packet-size" class="block text-sm font-medium text-gray-300 mb-1">
+                    Packet Size (<span id="packet-size-val">10</span> MB)
+                </label>
+                <input type="range" id="packet-size" min="10" max="100" value="10" step="10" oninput="updateCustomSettings()" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <!-- Slider 2: Number of Packets -->
+            <div>
+                <label for="num-packets" class="block text-sm font-medium text-gray-300 mb-1">
+                    Number of Packets (<span id="num-packets-val">10</span>)
+                </label>
+                <input type="range" id="num-packets" min="1" max="100" value="10" step="1" oninput="updateCustomSettings()" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <!-- Slider 3: Multiplier -->
+            <div>
+                <label for="multiplier" class="block text-sm font-medium text-gray-300 mb-1">
+                    Multiplier (<span id="multiplier-val">1</span>x)
+                </label>
+                <input type="range" id="multiplier" min="1" max="10" value="1" step="1" oninput="updateCustomSettings()" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <p class="text-md font-semibold text-center mt-3">
+                Total Custom Load: <span id="custom-load-display" class="text-yellow-400">100 MB</span>
+            </p>
+
+            <button 
+                id="custom-button" 
+                onclick="runCustomAggressor()"
+                class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200 shadow-lg hover:shadow-blue-500/50 disabled:bg-gray-500 disabled:cursor-not-allowed"
+            >
+                Run Custom Buffer (Gradual)
+            </button>
+        </div>
+
+        <!-- Fixed Test Buttons -->
+        <div class="mt-8 space-y-3 pt-6 border-t border-gray-700">
             <button 
                 id="crash-button" 
-                onclick="crashPageInstant()"
+                onclick="crashPageInstant(200000000)"
                 class="w-full py-3 bg-gray-600 hover:bg-gray-700 text-red-300 font-bold rounded-lg transition duration-200 shadow-lg hover:shadow-gray-500/50 disabled:bg-gray-500 disabled:cursor-not-allowed"
             >
-                Crash Page (Instant Freeze)
+                Page Killer (Instant Buffer)
             </button>
             
             <button 
                 id="start-button" 
-                onclick="startAggressor()"
+                onclick="startAggressor(200000000)"
                 class="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition duration-200 shadow-lg hover:shadow-red-500/50 disabled:bg-gray-500 disabled:cursor-not-allowed"
             >
-                Start Hard Buffering Test (Gradual)
+                Start Hard Buffering Test (Fixed 1.6 GB Gradual)
             </button>
         </div>
     </div>
 
     <script>
-        // Constants defined to aggressively use resources
-        // QUADRUPLED: Increased to 200,000,000 elements (approx. 1.6 GB of RAM) for extremely aggressive buffering.
-        const LARGE_BUFFER_SIZE = 200000000; 
-        const CHUNK_SIZE = 500000; // Process 500k items at a time
-        const RAM_INIT_CHUNKS = 50; // Total number of times we will check in during RAM allocation
+        // --- FIXED TEST CONSTANTS ---
+        // 200,000,000 elements * 8 bytes/Float64 = 1.6 GB
+        const FIXED_BUFFER_SIZE = 200000000; 
 
-        // QUADRUPLED: Increased to 32,000 particles for high I/O stress.
-        const NUM_PARTICLES = 32000;
+        // --- GLOBAL CONSTANTS ---
+        const BYTES_PER_ELEMENT = 8; // Float64Array uses 8 bytes per element
+        const ELEMENTS_PER_MB = (1024 * 1024) / BYTES_PER_ELEMENT; // 131,072 elements per MB
+        const CHUNK_SIZE = 500000; // Process 500k items at a time
+        const RAM_INIT_CHUNKS = 50; // Total number of steps for gradual allocation
+
+        // --- GPU CONSTANTS ---
+        const NUM_PARTICLES = 32000; // Fixed for both gradual tests
         let particles = [];
         let canvas, ctx;
         let animationFrameId;
 
+        // --- STATE VARIABLES ---
         let massiveBuffer = null;
         let isRunning = false;
         let currentIteration = 0;
         let totalSum = 0;
         let ramAllocationStep = 0;
+        let targetBufferSize = FIXED_BUFFER_SIZE; // Dynamically set by buttons
 
+        // --- DOM ELEMENTS ---
         const statusElement = document.getElementById('current-status');
         const ramProgressElement = document.getElementById('ram-progress');
         const cpuProgressElement = document.getElementById('cpu-progress');
         const startButton = document.getElementById('start-button');
         const crashButton = document.getElementById('crash-button');
+        const customButton = document.getElementById('custom-button');
+        const ramTargetDisplay = document.getElementById('ram-target-display');
+
+        // Custom Slider Elements
+        const packetSizeSlider = document.getElementById('packet-size');
+        const numPacketsSlider = document.getElementById('num-packets');
+        const multiplierSlider = document.getElementById('multiplier');
+        const packetSizeVal = document.getElementById('packet-size-val');
+        const numPacketsVal = document.getElementById('num-packets-val');
+        const multiplierVal = document.getElementById('multiplier-val');
+        const customLoadDisplay = document.getElementById('custom-load-display');
         
         document.addEventListener('DOMContentLoaded', () => {
             canvas = document.getElementById('gpu-canvas');
@@ -111,6 +185,7 @@
             const containerWidth = canvas.parentElement.clientWidth;
             canvas.width = containerWidth;
             canvas.height = 200;
+            updateCustomSettings(); // Initialize custom display
         });
 
         // --- UI & Utility Functions ---
@@ -125,15 +200,41 @@
             element.style.width = percentage + '%';
         }
 
+        function bytesToGB(bytes) {
+            return (bytes / 1024 / 1024 / 1024).toFixed(2);
+        }
+
+        function updateTargetDisplay(elements) {
+            const bytes = elements * BYTES_PER_ELEMENT;
+            const gb = bytesToGB(bytes);
+            ramTargetDisplay.textContent = `${gb} GB`;
+        }
+
+        function setAllButtonsDisabled(disabled) {
+            startButton.disabled = disabled;
+            crashButton.disabled = disabled;
+            customButton.disabled = disabled;
+            packetSizeSlider.disabled = disabled;
+            numPacketsSlider.disabled = disabled;
+            multiplierSlider.disabled = disabled;
+        }
+
         function reset() {
             isRunning = false;
             currentIteration = 0;
             totalSum = 0;
             massiveBuffer = null;
-            startButton.disabled = false;
-            startButton.textContent = 'Start Hard Buffering Test (Gradual)';
-            crashButton.disabled = false;
-            crashButton.textContent = 'Crash Page (Instant Freeze)';
+            
+            setAllButtonsDisabled(false);
+
+            startButton.textContent = 'Start Hard Buffering Test (Fixed 1.6 GB Gradual)';
+            crashButton.textContent = 'Page Killer (Instant Buffer)';
+            customButton.textContent = 'Run Custom Buffer (Gradual)';
+
+            // Reset UI feedback
+            updateTargetDisplay(FIXED_BUFFER_SIZE);
+            updateProgress(ramProgressElement, 1, 0);
+            updateProgress(cpuProgressElement, 1, 0);
             updateStatus('Ready to start ultimate stress test.');
             
             // Stop GPU simulation
@@ -144,15 +245,63 @@
             }
         }
 
-        // --- INSTANT CRASH / SYNCHRONOUS BUFFER FUNCTION (PERSISTENT FREEZE) ---
+        // --- Custom Settings Logic ---
+
+        function updateCustomSettings() {
+            const packetSizeMB = parseInt(packetSizeSlider.value);
+            const numPackets = parseInt(numPacketsSlider.value);
+            const multiplier = parseInt(multiplierSlider.value);
+
+            // Calculate total MB
+            const totalMB = packetSizeMB * numPackets * multiplier;
+            
+            // Update slider value displays
+            packetSizeVal.textContent = packetSizeMB;
+            numPacketsVal.textContent = numPackets;
+            multiplierVal.textContent = multiplier;
+            
+            // Update total load display
+            if (totalMB < 1024) {
+                 customLoadDisplay.textContent = `${totalMB} MB`;
+            } else {
+                const totalGB = (totalMB / 1024).toFixed(2);
+                customLoadDisplay.textContent = `${totalGB} GB`;
+            }
+        }
+        
+        function runCustomAggressor() {
+            if (isRunning) return;
+
+            // 1. Calculate the final element count for the custom test
+            const packetSizeMB = parseInt(packetSizeSlider.value);
+            const numPackets = parseInt(numPacketsSlider.value);
+            const multiplier = parseInt(multiplierSlider.value);
+
+            // Total MB * Elements/MB * Multiplier
+            const totalElements = Math.floor(packetSizeMB * numPackets * ELEMENTS_PER_MB * multiplier);
+
+            // 2. Start the gradual test with the custom size
+            targetBufferSize = totalElements;
+            startAggressor(); // Use the existing gradual logic
+            
+            // Update visual feedback for the user
+            updateTargetDisplay(targetBufferSize);
+            customButton.textContent = 'STRESSING CUSTOM LOAD...';
+        }
+
+
+        // --- INSTANT CRASH / SYNCHRONOUS BUFFER FUNCTION (PAGE KILLER) ---
         function crashPageInstant() {
             if (isRunning) return;
 
             isRunning = true;
-            startButton.disabled = true;
-            crashButton.disabled = true;
+            setAllButtonsDisabled(true);
             crashButton.textContent = 'SYSTEM LOCKED: MANUAL STOP REQUIRED';
             
+            // Set targetBufferSize to the fixed extreme value for the Page Killer
+            targetBufferSize = FIXED_BUFFER_SIZE;
+            
+            updateTargetDisplay(targetBufferSize);
             updateProgress(ramProgressElement, 1, 0);
             updateProgress(cpuProgressElement, 1, 0);
             
@@ -162,10 +311,10 @@
             // 1. Instant RAM Allocation (Synchronous)
             try {
                 // This blocks the thread until allocation and fill are complete (expect a multi-second freeze here)
-                massiveBuffer = new Float64Array(LARGE_BUFFER_SIZE);
+                massiveBuffer = new Float64Array(targetBufferSize);
                 
                 // Fill it instantly in a synchronous loop
-                for (let i = 0; i < LARGE_BUFFER_SIZE; i++) {
+                for (let i = 0; i < targetBufferSize; i++) {
                     massiveBuffer[i] = Math.random(); 
                 }
                 updateProgress(ramProgressElement, 1, 1);
@@ -175,12 +324,8 @@
                 let tempSum = 0;
                 // This loop is designed to run until the browser is forced to close (i.e., forever)
                 while (true) {
-                    for (let i = 0; i < LARGE_BUFFER_SIZE; i++) {
+                    for (let i = 0; i < targetBufferSize; i++) {
                         tempSum += massiveBuffer[i] * Math.sin(i);
-                        // The progress update below is unlikely to render in the browser due to the synchronous lock
-                        if (i % 10000000 === 0) {
-                            updateProgress(cpuProgressElement, LARGE_BUFFER_SIZE, i);
-                        }
                     }
                     // Prevent the JS engine from optimizing away the loop by resetting the sum
                     if (tempSum > 1000000) tempSum = 0; 
@@ -192,23 +337,21 @@
                 // We keep the button locked, but allow a reset if the user wants to try again
                 crashButton.textContent = 'LOCK FAILED (Retry)';
                 crashButton.disabled = false;
+                setAllButtonsDisabled(false); // Re-enable other controls
             }
-
-            // NOTE: There is NO reset() call here. The code is designed to remain locked in the while(true) loop
-            // until the browser/tab is manually closed by the user, fulfilling the "force stopped" requirement.
         }
 
         // --- RAM Stress Functions (Gradual) ---
         
         function allocateMemoryChunk() {
             // Calculate chunk size based on total elements and number of steps
-            const allocationChunkSize = LARGE_BUFFER_SIZE / RAM_INIT_CHUNKS;
+            const allocationChunkSize = targetBufferSize / RAM_INIT_CHUNKS;
             const startIndex = ramAllocationStep * allocationChunkSize;
-            const endIndex = Math.min((ramAllocationStep + 1) * allocationChunkSize, LARGE_BUFFER_SIZE);
+            const endIndex = Math.min((ramAllocationStep + 1) * allocationChunkSize, targetBufferSize);
 
             if (!massiveBuffer) {
                 try {
-                    massiveBuffer = new Float64Array(LARGE_BUFFER_SIZE);
+                    massiveBuffer = new Float64Array(targetBufferSize);
                     updateStatus('1. Buffer initialized. Filling memory...', 'text-red-400');
                 } catch (e) {
                     updateStatus(`CRITICAL ERROR: Failed to allocate full memory. ${e.message}`, 'text-red-600');
@@ -225,7 +368,8 @@
             updateProgress(ramProgressElement, RAM_INIT_CHUNKS, ramAllocationStep);
             
             if (ramAllocationStep < RAM_INIT_CHUNKS) {
-                requestAnimationFrame(allocateMemoryChunk);
+                // Use setTimeout to yield control back to the browser for animation frames to update (slower, but shows progress)
+                setTimeout(() => requestAnimationFrame(allocateMemoryChunk), 0);
             } else {
                 updateProgress(ramProgressElement, 1, 1);
                 updateStatus(`1. Allocation complete. Starting CPU/GPU stress.`, 'text-green-400');
@@ -236,20 +380,20 @@
         }
 
         function runCPUStress() {
-            if (currentIteration >= LARGE_BUFFER_SIZE) {
+            if (currentIteration >= targetBufferSize) {
                 updateStatus(`2. Stress complete. Total Sum: ${totalSum}. GPU simulation stopping.`, 'text-green-400');
                 reset();
                 return;
             }
 
-            const chunkEnd = Math.min(currentIteration + CHUNK_SIZE, LARGE_BUFFER_SIZE);
+            const chunkEnd = Math.min(currentIteration + CHUNK_SIZE, targetBufferSize);
             
             for (let i = currentIteration; i < chunkEnd; i++) {
                 totalSum += massiveBuffer[i] * Math.sin(i);
             }
             
             currentIteration = chunkEnd;
-            updateProgress(cpuProgressElement, LARGE_BUFFER_SIZE, currentIteration);
+            updateProgress(cpuProgressElement, targetBufferSize, currentIteration);
             
             requestAnimationFrame(runCPUStress);
         }
@@ -311,14 +455,16 @@
 
         // --- Main Execution (Original Gradual Test) ---
 
-        function startAggressor() {
+        function startAggressor(fixedSize = FIXED_BUFFER_SIZE) {
             if (isRunning) return;
             
             isRunning = true;
-            startButton.disabled = true;
-            crashButton.disabled = true;
+            setAllButtonsDisabled(true);
             startButton.textContent = 'STRESSING SYSTEM...';
+
+            targetBufferSize = fixedSize; // Set target for fixed button
             
+            updateTargetDisplay(targetBufferSize);
             updateProgress(ramProgressElement, 1, 0);
             updateProgress(cpuProgressElement, 1, 0);
 
