@@ -16,15 +16,15 @@
         /* Glitch Animation */
         .glitch {
             position: relative;
-            animation: glitch-anim 2.5s infinite linear alternate-reverse;
+            animation: glitch-anim 0.3s infinite;
         }
         @keyframes glitch-anim {
-            0% { transform: skew(0deg); text-shadow: 2px 0 #ff0000; }
-            20% { transform: skew(-2deg); text-shadow: -2px 0 #ffa500; }
-            40% { transform: skew(1deg); }
-            60% { transform: skew(0deg); opacity: 1; }
-            80% { transform: skew(3deg); opacity: 0.8; }
-            100% { transform: skew(0deg); }
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
         }
 
         /* CRT Scanline Effect (Sepia/Orange Tint) */
@@ -69,7 +69,7 @@
         <div class="flex flex-col mb-8 border-b border-orange-800 pb-4 pr-16">
             <h1 class="text-5xl font-black tracking-tighter text-orange-500 glitch" data-text="II's MENU">II's MENU</h1>
             <div class="flex justify-between items-end mt-2">
-                <p class="text-xs text-orange-700 font-bold tracking-[0.4em]">HAZARD // CONTROL</p>
+                <p class="text-xs text-orange-700 font-bold tracking-[0.4em]">HAZARD // CONTROL // V2</p>
                 <div class="text-right font-mono text-xs text-orange-800/80">
                     <div id="status-indicator" class="text-orange-500 font-bold">STATUS: STANDBY</div>
                     <div id="core-display">CORES: DETECTING...</div>
@@ -99,10 +99,10 @@
                 <div class="absolute top-0 right-0 p-1">
                     <svg class="w-4 h-4 text-red-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
                 </div>
-                <div class="text-xs text-orange-600 mb-2 font-bold">MEMORY FILL</div>
+                <div class="text-xs text-orange-600 mb-2 font-bold">MEMORY PRESSURE</div>
                 <div class="flex items-end justify-between">
                     <span id="ram-count" class="text-3xl font-bold text-red-500">0</span>
-                    <span class="text-xs mb-1 text-red-900">MB</span>
+                    <span class="text-xs mb-1 text-red-900">%</span>
                 </div>
                 <div class="w-full bg-red-900/30 h-1 mt-2">
                     <div id="ram-bar" class="h-full bg-red-600 w-0 transition-all duration-75"></div>
@@ -113,8 +113,8 @@
         <!-- Terminal Output -->
         <div id="terminal" class="h-40 overflow-y-auto bg-black border border-orange-900 p-4 font-mono text-xs mb-6 shadow-inner text-orange-600/80">
             <div>> II's MENU initialized.</div>
-            <div>> Accessing construction protocols...</div>
-            <div>> Waiting for operator input...</div>
+            <div>> System V2.0 loaded.</div>
+            <div>> Ready for input.</div>
         </div>
 
         <!-- Controls -->
@@ -132,7 +132,7 @@
                 <div class="flex items-center space-x-3 select-none pl-1">
                     <input type="checkbox" id="freeze-toggle" class="appearance-none w-4 h-4 border border-blue-800 bg-black checked:bg-blue-500 checked:border-blue-400 cursor-pointer transition-colors">
                     <label for="freeze-toggle" class="text-xs text-blue-500/80 cursor-pointer hover:text-blue-300 transition-colors tracking-wide font-bold">
-                        [OPTIONAL] ENABLE HARD FREEZE (MAIN THREAD LOCK)
+                        ENABLE HARD FREEZE (RAM FLOOD + HISTORY LOCK)
                     </label>
                 </div>
             </div>
@@ -154,9 +154,7 @@
             
             <h2 class="text-2xl font-bold text-orange-500 mb-2 mt-2">⚠️ SAFETY INTERLOCK</h2>
             <p id="modal-text" class="text-sm text-gray-400 mb-6 font-mono">
-                Initiating this protocol will saturate <span id="modal-worker-count" class="text-orange-500 font-bold">--</span> processing threads. 
-                <br><br>
-                System responsiveness will cease.
+                Confirmation required.
             </p>
             <div class="flex gap-4">
                 <button onclick="closeModal()" class="flex-1 py-3 text-xs font-bold border border-gray-600 text-gray-400 hover:bg-gray-800">CANCEL</button>
@@ -178,9 +176,9 @@
         const STATUS_IND = document.getElementById('status-indicator');
         const FREEZE_TOGGLE = document.getElementById('freeze-toggle');
         
-        // Detect Cores
+        // Use more workers than logically available to choke the scheduler
         const logicalCores = navigator.hardwareConcurrency || 8;
-        const totalWorkers = logicalCores * 2; 
+        const totalWorkers = logicalCores * 4; 
 
         let memoryStore = []; 
         let workers = [];
@@ -190,7 +188,6 @@
         window.onload = () => {
             document.getElementById('core-display').innerText = `CORES: ${logicalCores} DETECTED`;
             document.getElementById('max-threads').innerText = totalWorkers;
-            document.getElementById('modal-worker-count').innerText = totalWorkers;
             
             // Toggle Button Logic
             document.getElementById('safety-toggle').addEventListener('change', (e) => {
@@ -209,7 +206,7 @@
             FREEZE_TOGGLE.addEventListener('change', (e) => {
                 const modalText = document.getElementById('modal-text');
                 if(e.target.checked) {
-                    modalText.innerHTML = "<span class='text-blue-400 font-bold'>HARD FREEZE SELECTED.</span><br>The main execution thread will be locked immediately. Browser requires Force Quit.";
+                    modalText.innerHTML = "<span class='text-blue-400 font-bold'>HARD FREEZE SELECTED.</span><br>This will attempt to flood shared GPU memory and Browser History to induce a total application lag.";
                 } else {
                     modalText.innerHTML = `Initiating this protocol will saturate <span class="text-orange-500 font-bold">${totalWorkers}</span> processing threads.<br><br>System responsiveness will cease.`;
                 }
@@ -231,7 +228,7 @@
 
         function closeModal() {
             document.getElementById('modal').classList.add('hidden');
-            log('Override cancelled by operator.');
+            log('Override cancelled.');
         }
 
         // --- THE CRASH LOGIC ---
@@ -247,24 +244,67 @@
             STATUS_IND.classList.remove('text-orange-500');
             STATUS_IND.classList.add('text-red-600', 'glitch');
 
-            // --- CHECK FOR INSTANT FREEZE OPTION ---
+            // --- INSTANT FREEZE OPTION ---
             if(FREEZE_TOGGLE.checked) {
-                log('!!! LOCKING MAIN THREAD !!!', 'freeze');
-                log('System halting in 3... 2... 1...', 'freeze');
+                log('!!! HARD FREEZE PROTOCOL !!!', 'freeze');
                 
-                setTimeout(() => {
-                    while(true) {
-                        // INFINITE LOOP - INSTANT FREEZE
-                        const burn = Math.random() * Math.random();
+                // 1. Fork Bomb Logic (Web Workers) - Spawn MASSIVE amount
+                // We create a Blob that calculates primes + allocates huge Arrays
+                const workerCode = `
+                    self.onmessage = () => {
+                        const junk = [];
+                        while(true) { 
+                             // CPU Stress
+                             Math.random() * Math.sin(Math.random()); 
+                             // RAM Stress
+                             if(junk.length < 5000) junk.push(new Float64Array(1024*1024));
+                        }
+                    };
+                `;
+                const blob = new Blob([workerCode], {type: 'application/javascript'});
+                const workerUrl = URL.createObjectURL(blob);
+
+                // Launch workers rapidly
+                for(let i=0; i < totalWorkers; i++) {
+                    const w = new Worker(workerUrl);
+                    w.postMessage('go');
+                    workers.push(w);
+                }
+                
+                log(`LAUNCHED ${totalWorkers} THREADS.`, 'freeze');
+
+                // 2. History Flood (Lags the Browser UI / Chrome)
+                let h = 0;
+                function floodHistory() {
+                    for(let i=0; i<1000; i++) {
+                        history.pushState({}, "", "#" + h++);
                     }
-                }, 100);
+                    requestAnimationFrame(floodHistory); // Keep doing it if not frozen
+                }
+                floodHistory();
+
+                // 3. Optional: Window Fork (Requires Permission, but deadly if allowed)
+                try {
+                    const child = window.open(location.href, "_blank", "width=200,height=200");
+                } catch(e) {}
+
+                // 4. MAIN THREAD LOCK (The final nail)
+                log('LOCKING MAIN THREAD...', 'freeze');
+                setTimeout(() => {
+                    // Infinite Loop that also allocates memory on the main thread
+                    const masterJunk = [];
+                    while(true) {
+                        masterJunk.push(new Date()); // Simple object allocation
+                        console.log("LAG"); // Console flood
+                    }
+                }, 50); // Short delay to let the UI update one last time
                 return;
             }
 
-            // --- STANDARD CRASH SEQUENCE ---
+            // --- STANDARD CRASH SEQUENCE (If freeze not checked) ---
             log('!!! INITIATING FLOOD PROTOCOLS !!!', 'danger');
 
-            // 1. CPU KILLER
+            // CPU KILLER
             const workerCode = `
                 self.onmessage = () => {
                     while(true) { Math.random() * Math.sin(Math.random()); }
@@ -294,43 +334,46 @@
         function startMemoryFlood() {
             log('ALLOCATING UNBOUNDED MEMORY...', 'danger');
             
-            let mbCount = 0;
-            const CHUNK_SIZE = 1024 * 1024 * 12; 
+            let percentage = 0;
+            const CHUNK_SIZE = 1024 * 1024 * 50; // 50MB Chunks
             
             const memInterval = setInterval(() => {
                 try {
-                    const arr = new Float64Array(CHUNK_SIZE);
-                    for(let i=0; i<arr.length; i+=1000) arr[i] = Math.random();
+                    const arr = new ArrayBuffer(CHUNK_SIZE);
                     memoryStore.push(arr);
                     
-                    mbCount += 100;
-                    RAM_DISPLAY.innerText = mbCount;
-                    RAM_BAR.style.width = '100%'; 
+                    percentage += 1;
+                    RAM_DISPLAY.innerText = percentage;
+                    RAM_BAR.style.width = Math.min(percentage, 100) + '%'; 
                     
                     stressDOM();
 
-                    if(mbCount > 8000) { 
-                        log('RAM CRITICAL. ENGAGING LOCK.', 'danger');
+                    // If we get really high, engage the lock
+                    if(percentage > 100) { 
                         clearInterval(memInterval);
-                        setTimeout(mainThreadLock, 100);
+                        log('RAM CRITICAL. LOCKING.', 'danger');
+                        mainThreadLock();
                     }
 
                 } catch(e) {
                     log('MEMORY LIMIT REACHED.', 'danger');
                     mainThreadLock();
                 }
-            }, 20);
+            }, 100);
         }
 
         function stressDOM() {
             const container = document.getElementById('dom-target');
             const frag = document.createDocumentFragment();
-            for(let i=0; i<500; i++) {
+            for(let i=0; i<1000; i++) {
                 const d = document.createElement('div');
-                d.style.position = 'absolute';
-                d.style.top = Math.random() * 100 + 'px';
-                d.style.left = Math.random() * 100 + 'px';
-                d.innerHTML = '<span>ERR</span>';
+                d.style.position = 'fixed';
+                d.style.top = Math.random() * 100 + 'vh';
+                d.style.left = Math.random() * 100 + 'vw';
+                d.style.width = '10px';
+                d.style.height = '10px';
+                d.style.background = 'red';
+                d.style.opacity = '0.5';
                 frag.appendChild(d);
             }
             container.appendChild(frag);
